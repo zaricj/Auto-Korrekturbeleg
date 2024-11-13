@@ -13,6 +13,14 @@ baserdir = os.path.dirname(os.path.abspath(__file__))
 CONFIG_FILE = "_internal\\config\\user_config.json"
 CONFIG_FILE_MULTI_DAY = "_internal\\config\\user_config_multi_day.json"
 
+def create_config_files_dir():
+    if not os.path.exists:
+        os.makedirs("_internal\\config", exist_ok=True)
+    else:
+        pass
+    
+create_config_files_dir()
+
 # Load all configurations from the JSON file
 def load_config_single_day():
     if os.path.exists(CONFIG_FILE):
@@ -61,7 +69,7 @@ class SingleDayForm:
         template = outlook.CreateItemFromTemplate(oft_path)
 
         template.Subject = "Korrekturbeleg"
-        template.To = "some@mail.com"
+        template.To = "Zeiterfassung.NES@Geis-Group.de"
         template.CC = self.email_cc
         
         try:
@@ -97,7 +105,7 @@ class MultiDayForm:
         template = outlook.CreateItemFromTemplate(oft_path)
 
         template.Subject = "Korrekturbeleg"
-        template.To = "some@mail.com"
+        template.To = "Zeiterfassung.NES@Geis-Group.de" # some@mail.com
         template.CC = self.email_cc
         
         if len(self.list_of_dates) == len(self.list_of_end_time):
@@ -130,6 +138,10 @@ class FormApp:
         
         # Set modern theme
         self.style = Style(theme="light")
+        
+        # Original Theme Color
+        # self.style = ttk.Style(self.root)
+        # self.style.theme_use("clam")
 
         # Create footer frame for clock
         self.footer_frame = ttk.Frame(root)
@@ -545,7 +557,7 @@ class FormApp:
         time_string = time.strftime("%H:%M:%S")
         date_string = time.strftime("%d.%m.%Y")
         self.clock.config(text=time_string + " / " + date_string)
-        self.clock.after(200, self.tick)
+        self.clock.after(1000, self.tick)
     
     
     def refresh(self):
@@ -583,11 +595,16 @@ def resize_window(event):
         root.geometry("350x400")    # Set the desired width and height for the first tab
     elif selected_tab == 1:  # Second tab
         root.geometry("600x400")  # Set the desired width and height for the second tab
-        
+
+def on_closing():
+    if messagebox.askyesno("Quit", "Do you want to quit?"):
+        root.destroy()
     
 # Create the Tkinter root window
 root = tk.Tk()
 root.geometry("350x400+1100+500")
+root.wm_resizable(False, False)
+root.protocol("WM_DELETE_WINDOW", on_closing)
 
 # Notebook for tabs
 notebook = ttk.Notebook(root)
