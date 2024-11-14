@@ -4,6 +4,7 @@ import os
 import tkinter as tk
 import json
 import time
+import ctypes
 from tkinter import messagebox, ttk, PhotoImage
 from ttkbootstrap import Style
 
@@ -69,7 +70,7 @@ class SingleDayForm:
         template = outlook.CreateItemFromTemplate(oft_path)
 
         template.Subject = "Korrekturbeleg"
-        template.To = "Zeiterfassung.NES@Geis-Group.de"
+        template.To = "some@mail.com"
         template.CC = self.email_cc
         
         try:
@@ -88,13 +89,13 @@ class SingleDayForm:
         return True
 
 class MultiDayForm:
-    def __init__(self, full_name: str, card_id: str, department: str, work_time_start: str, email_cc: str, list_of_dates: list, list_of_end_time: list):
+    def __init__(self, full_name: str, card_id: str, department: str, email_cc: str, list_of_dates: list, list_of_start_time: list, list_of_end_time: list):
         self.full_name = full_name
         self.card_id = card_id
         self.department = department
-        self.work_time_start = work_time_start
         self.email_cc = email_cc
         self.list_of_dates = list_of_dates
+        self.list_of_start_time = list_of_start_time
         self.list_of_end_time = list_of_end_time
         self.reason = "Homeoffice"
         
@@ -105,17 +106,17 @@ class MultiDayForm:
         template = outlook.CreateItemFromTemplate(oft_path)
 
         template.Subject = "Korrekturbeleg"
-        template.To = "Zeiterfassung.NES@Geis-Group.de" # some@mail.com
+        template.To = "some@mail.com" # some@mail.com
         template.CC = self.email_cc
         
-        if len(self.list_of_dates) == len(self.list_of_end_time):
-            for i, (date, end_time) in enumerate(zip(self.list_of_dates, self.list_of_end_time), 1):
+        if len(self.list_of_dates) == len(self.list_of_end_time) and len(self.list_of_start_time):
+            for i, (date, start_time , end_time) in enumerate(zip(self.list_of_dates, self.list_of_start_time,self.list_of_end_time), 1):
                 try:
                     template.UserProperties("Name Mitarbeiter").Value = self.full_name
                     template.UserProperties("Kartennummer").Value = self.card_id
                     template.UserProperties("Abteilung1").Value = self.department
                     template.UserProperties(f"Datum{i}").Value = date
-                    template.UserProperties(f"Von{i}").Value = self.work_time_start
+                    template.UserProperties(f"Von{i}").Value = start_time
                     template.UserProperties(f"Bis{i}").Value = end_time
                     template.UserProperties(f"Grund{i}").Value = self.reason
                 except AttributeError as e:
@@ -130,7 +131,7 @@ class FormApp:
         self.root = root
         self.single_day_frame = single_day_frame
         self.multi_day_frame = multi_day_frame
-        self.root.title("Auto-Korrekturbeleg 1.0")
+        self.root.title("Auto-Korrekturbeleg 1.1")
         self.clock = tk.Label()
         
         icon = PhotoImage(file = "_internal\\icon\\working-time.png")
@@ -169,6 +170,7 @@ class FormApp:
         multi_day_frame.grid_columnconfigure(1, weight=1)
         multi_day_frame.grid_columnconfigure(2, weight=1)
         multi_day_frame.grid_columnconfigure(3, weight=1)
+        multi_day_frame.grid_columnconfigure(4, weight=1)
         multi_day_frame.grid_rowconfigure(0, weight=1)
         multi_day_frame.grid_rowconfigure(1, weight=1)
         multi_day_frame.grid_rowconfigure(2, weight=1)
@@ -195,33 +197,23 @@ class FormApp:
         ttk.Label(multi_day_frame, text="Department:").grid(row=2, column=0, padx=10, pady=5, sticky="E")
         self.department_entry_multi_day = ttk.Entry(multi_day_frame)
         self.department_entry_multi_day.grid(row=2, column=1, padx=10, pady=5, sticky="EW")
-
-        ttk.Label(multi_day_frame, text="Work Time Start:").grid(row=3, column=0, padx=10, pady=5, sticky="E")
-        self.work_time_start_entry_multi_day = ttk.Entry(multi_day_frame)
-        self.work_time_start_entry_multi_day.grid(row=3, column=1, padx=10, pady=5, sticky="EW")
         
-        ttk.Label(multi_day_frame, text="E-Mail CC:").grid(row=4, column=0, padx=10, pady=5, sticky="E")
+        ttk.Label(multi_day_frame, text="E-Mail CC:").grid(row=3, column=0, padx=10, pady=5, sticky="E")
         self.email_cc_entry_multi_day = ttk.Entry(multi_day_frame)
-        self.email_cc_entry_multi_day.grid(row=4, column=1, padx=10, pady=5, sticky="EW")
+        self.email_cc_entry_multi_day.grid(row=3, column=1, padx=10, pady=5, sticky="EW")
         
         # Dropdown for loading configurations
-        ttk.Label(multi_day_frame, text="Select Config:").grid(row=5, column=0, padx=10, pady=5, sticky="E")
+        ttk.Label(multi_day_frame, text="Select Config:").grid(row=4, column=0, padx=10, pady=5, sticky="E")
         self.config_var_multi_day= tk.StringVar(multi_day_frame)
         self.config_dropdown_multi_day = ttk.Combobox(multi_day_frame, textvariable=self.config_var_multi_day, values=list(self.config_multi_day.keys()), state="readonly")
-        self.config_dropdown_multi_day.grid(row=5, column=1, padx=10, pady=5, sticky="EW")
+        self.config_dropdown_multi_day.grid(row=4, column=1, padx=10, pady=5, sticky="EW")
 
         # Buttons
         self.load_config_button_multi_day = ttk.Button(multi_day_frame, text="Load Config", style="Bold.TButton", command=lambda: self.load_config("MultiDay"))
-        self.load_config_button_multi_day.grid(row=6, column=0, columnspan=2, padx=10, pady=10, sticky="EW")
-        
-        # self.save_config_multi_day_button = ttk.Button(multi_day_frame, text="Save Config", command=self.save_config)
-        # self.save_config_multi_day_button.grid(row=6, column=0, columnspan=1, padx=10, pady=10, sticky="EW")
-        # 
-        # self.delete_config_multi_day_button = ttk.Button(multi_day_frame, text="Delete Config", command=self.delete_config_multi_day)
-        # self.delete_config_multi_day_button.grid(row=6, column=3, padx=10, pady=10, sticky="EW")
+        self.load_config_button_multi_day.grid(row=5, column=0, columnspan=2, padx=10, pady=10, sticky="EW")
         
         mb_multi_day = ttk.Menubutton(multi_day_frame, text="Config file options...", style="primary.Outline.TMenubutton")
-        mb_multi_day.grid(row=6, column=2, columnspan=2, padx=10, pady=10, sticky="EW") 
+        mb_multi_day.grid(row=6, column=0, columnspan=2, padx=10, pady=10, sticky="EW") 
             
         menu_mb_multi_day = tk.Menu(mb_multi_day, tearoff=False)
 
@@ -232,15 +224,17 @@ class FormApp:
         mb_multi_day["menu"] = menu_mb_multi_day
         
         self.clear_fields_multi_day = ttk.Button(multi_day_frame, text="Clear Fields", style="Bold.TButton", command=lambda: self.helper_clear_fields("MultiDay"))
-        self.clear_fields_multi_day.grid(row=7, column=0, columnspan=1, padx=10, pady=10, sticky="EW")
+        self.clear_fields_multi_day.grid(row=6, column=2, columnspan=1, padx=10, pady=10, sticky="EW")
+        
         # Add Day to Config
         self.add_day_button = ttk.Button(multi_day_frame, text="Add Today's Day", style="Bold.TButton", command=self.add_day)
-        self.add_day_button.grid(row=7, column=1, columnspan=1, padx=10, pady=10, sticky="EW")
+        self.add_day_button.grid(row=6, column=3, columnspan=1, padx=10, pady=10, sticky="EW")
         
         self.submit_form_button_multi_day = ttk.Button(multi_day_frame, text="Submit Form", style="Bold.TButton", command=self.submit_form_multi_day)
-        self.submit_form_button_multi_day.grid(row=7, column=2, columnspan=2, padx=10, pady=10, sticky="EW")
+        self.submit_form_button_multi_day.grid(row=6, column=4, columnspan=1, padx=10, pady=10, sticky="EW")
         
-        # GUI elements for Days 1 to 5
+        # ===== Workday Dates Label and Entries ====== #
+
         self.datum_label = ttk.Label(multi_day_frame, text="Workday Dates:", font=("roboto", 10, "bold"))
         self.datum_label.grid(row=0, column=2, padx=5, pady=5, sticky="EW")
         
@@ -259,23 +253,45 @@ class FormApp:
         self.datum5_entry = ttk.Entry(multi_day_frame)
         self.datum5_entry.grid(row=5, column=2, padx=10, pady=5, sticky="EW")
         
+        # ===== Work Start Time Label and Entries ====== #
+        
+        self.time_start_label = ttk.Label(multi_day_frame, text="Work Start Time:", font=("roboto", 10, "bold"))
+        self.time_start_label.grid(row=0, column=3, padx=5, pady=5, sticky="EW")
+        
+        self.time_work_start1_entry = ttk.Entry(multi_day_frame)
+        self.time_work_start1_entry.grid(row=1, column=3, padx=10, pady=5, sticky="EW")
+        
+        self.time_work_start2_entry = ttk.Entry(multi_day_frame)
+        self.time_work_start2_entry.grid(row=2, column=3, padx=10, pady=5, sticky="EW")
+        
+        self.time_work_start3_entry = ttk.Entry(multi_day_frame)
+        self.time_work_start3_entry.grid(row=3, column=3, padx=10, pady=5, sticky="EW")
+        
+        self.time_work_start4_entry = ttk.Entry(multi_day_frame)
+        self.time_work_start4_entry.grid(row=4, column=3, padx=10, pady=5, sticky="EW")
+        
+        self.time_work_start5_entry = ttk.Entry(multi_day_frame)
+        self.time_work_start5_entry.grid(row=5, column=3, padx=10, pady=5, sticky="EW")
+        
+        # ===== Work End Time Label and Entries ====== #
+        
         self.time_from_label = ttk.Label(multi_day_frame, text="Work End Time:", font=("roboto", 10, "bold"))
-        self.time_from_label.grid(row=0, column=3, padx=5, pady=5, sticky="EW")
+        self.time_from_label.grid(row=0, column=4, padx=5, pady=5, sticky="EW")
         
-        self.time_till1_entry = ttk.Entry(multi_day_frame)
-        self.time_till1_entry.grid(row=1, column=3, padx=10, pady=5, sticky="EW")
+        self.time_work_end1_entry = ttk.Entry(multi_day_frame)
+        self.time_work_end1_entry.grid(row=1, column=4, padx=10, pady=5, sticky="EW")
         
-        self.time_till2_entry = ttk.Entry(multi_day_frame)
-        self.time_till2_entry.grid(row=2, column=3, padx=10, pady=5, sticky="EW")
+        self.time_work_end2_entry = ttk.Entry(multi_day_frame)
+        self.time_work_end2_entry.grid(row=2, column=4, padx=10, pady=5, sticky="EW")
         
-        self.time_till3_entry = ttk.Entry(multi_day_frame)
-        self.time_till3_entry.grid(row=3, column=3, padx=10, pady=5, sticky="EW")
+        self.time_work_end3_entry = ttk.Entry(multi_day_frame)
+        self.time_work_end3_entry.grid(row=3, column=4, padx=10, pady=5, sticky="EW")
         
-        self.time_till4_entry = ttk.Entry(multi_day_frame)
-        self.time_till4_entry.grid(row=4, column=3, padx=10, pady=5, sticky="EW")
+        self.time_work_end4_entry = ttk.Entry(multi_day_frame)
+        self.time_work_end4_entry.grid(row=4, column=4, padx=10, pady=5, sticky="EW")
         
-        self.time_till5_entry = ttk.Entry(multi_day_frame)
-        self.time_till5_entry.grid(row=5, column=3, padx=10, pady=5, sticky="EW")
+        self.time_work_end5_entry = ttk.Entry(multi_day_frame)
+        self.time_work_end5_entry.grid(row=5, column=4, padx=10, pady=5, sticky="EW")
         
         # ================================================================================================ #
         
@@ -310,6 +326,7 @@ class FormApp:
         self.clock = ttk.Label(self.footer_frame, font=("roboto", 16, "bold"), background="#dcdad5")
         self.clock.grid(row=8, columnspan=2, padx=10, pady=10, sticky="EW")
         self.clock.pack(expand=True)
+        
         mb = ttk.Menubutton(single_day_frame, text="Config file options...", style="primary.Outline.TMenubutton")
         mb.grid(row=6, column=1, padx=10, pady=10, sticky="EW")  # grid(row=9, columnspan=2, padx=10, pady=10, sticky="EW")
             
@@ -330,6 +347,34 @@ class FormApp:
         self.submit_form_button.grid(row=7, column=1, columnspan=1, padx=10, pady=10, sticky="EW")
         
 
+    def get_work_start_time(self):
+        """This method takes the “System Up Time” from Task Manager and converts the time into seconds.\n
+        It then gets the current system time in seconds and subtracts the System Up Time from it to calculate the start time.\n
+        The start time is then converted into the format hour:minute.
+
+        Returns:
+            int: hour, minute
+        """
+
+        # Get the library where GetTickCount64 resides
+        lib = ctypes.windll.kernel32
+
+        # Get system uptime in milliseconds
+        t = lib.GetTickCount64()
+
+        # Convert milliseconds to seconds
+        sys_uptime_seconds = t // 1000
+
+        # Get current time
+        now = datetime.datetime.now()
+
+        # Calculate the start time by subtracting the uptime from the current time
+        work_start_time = now - datetime.timedelta(seconds=sys_uptime_seconds)
+
+        # Extract hours and minutes from the start time
+        return work_start_time.hour, work_start_time.minute
+
+
     def load_config(self, parent):
         selected_config = self.config_var.get()
         selected_config_multi_day = self.config_var_multi_day.get()
@@ -348,6 +393,8 @@ class FormApp:
                 self.work_time_start_entry.insert(0, config_data.get("work_time_start", ""))
                 self.email_cc_entry.delete(0, tk.END)
                 self.email_cc_entry.insert(0, config_data.get("email_cc",""))
+            else:
+                messagebox.showerror("No config file selected", "No config file to load, please select one from the menu.")
             
         # Multi Day Config
         if parent ==  "MultiDay":
@@ -359,8 +406,6 @@ class FormApp:
                 self.card_id_entry_multi_day.insert(0, config_data_multi_day.get("card_id", ""))
                 self.department_entry_multi_day.delete(0, tk.END)
                 self.department_entry_multi_day.insert(0, config_data_multi_day.get("department", ""))
-                self.work_time_start_entry_multi_day.delete(0, tk.END)
-                self.work_time_start_entry_multi_day.insert(0, config_data_multi_day.get("work_time_start", ""))
                 self.email_cc_entry_multi_day.delete(0, tk.END)
                 self.email_cc_entry_multi_day.insert(0, config_data_multi_day.get("email_cc",""))
                 self.datum1_entry.delete(0, tk.END)
@@ -373,17 +418,28 @@ class FormApp:
                 self.datum4_entry.insert(0, config_data_multi_day.get("weekday4", ""))
                 self.datum5_entry.delete(0, tk.END)
                 self.datum5_entry.insert(0, config_data_multi_day.get("weekday5", ""))
-                self.time_till1_entry.delete(0, tk.END)
-                self.time_till1_entry.insert(0, config_data_multi_day.get("endtime1", ""))
-                self.time_till2_entry.delete(0, tk.END)
-                self.time_till2_entry.insert(0, config_data_multi_day.get("endtime2", ""))
-                self.time_till3_entry.delete(0, tk.END)
-                self.time_till3_entry.insert(0, config_data_multi_day.get("endtime3", ""))
-                self.time_till4_entry.delete(0, tk.END)
-                self.time_till4_entry.insert(0, config_data_multi_day.get("endtime4", ""))
-                self.time_till5_entry.delete(0, tk.END)
-                self.time_till5_entry.insert(0, config_data_multi_day.get("endtime5", ""))
-
+                self.time_work_start1_entry.delete(0, tk.END)
+                self.time_work_start1_entry.insert(0, config_data_multi_day.get("starttime1", ""))
+                self.time_work_start2_entry.delete(0, tk.END)
+                self.time_work_start2_entry.insert(0, config_data_multi_day.get("starttime2", ""))
+                self.time_work_start3_entry.delete(0, tk.END)
+                self.time_work_start3_entry.insert(0, config_data_multi_day.get("starttime3", ""))
+                self.time_work_start4_entry.delete(0, tk.END)
+                self.time_work_start4_entry.insert(0, config_data_multi_day.get("starttime4", ""))
+                self.time_work_start5_entry.delete(0, tk.END)
+                self.time_work_start5_entry.insert(0, config_data_multi_day.get("endtime5", ""))
+                self.time_work_end1_entry.delete(0, tk.END)
+                self.time_work_end1_entry.insert(0, config_data_multi_day.get("endtime1", ""))
+                self.time_work_end2_entry.delete(0, tk.END)
+                self.time_work_end2_entry.insert(0, config_data_multi_day.get("endtime2", ""))
+                self.time_work_end3_entry.delete(0, tk.END)
+                self.time_work_end3_entry.insert(0, config_data_multi_day.get("endtime3", ""))
+                self.time_work_end4_entry.delete(0, tk.END)
+                self.time_work_end4_entry.insert(0, config_data_multi_day.get("endtime4", ""))
+                self.time_work_end5_entry.delete(0, tk.END)
+                self.time_work_end5_entry.insert(0, config_data_multi_day.get("endtime5", ""))
+            else:
+                messagebox.showerror("No config file selected", "No config file to load, please select one from the menu.")
     
     def save_config(self):
         config_name = self.full_name_entry.get()
@@ -406,18 +462,22 @@ class FormApp:
                 "full_name": self.full_name_entry_multi_day.get(),
                 "card_id": self.card_id_entry_multi_day.get(),
                 "department": self.department_entry_multi_day.get(),
-                "work_time_start": self.work_time_start_entry_multi_day.get(),
                 "email_cc": self.email_cc_entry_multi_day.get(),
                 "weekday1": self.datum1_entry.get(),
                 "weekday2": self.datum2_entry.get(),
                 "weekday3": self.datum3_entry.get(),
                 "weekday4": self.datum4_entry.get(),
                 "weekday5": self.datum5_entry.get(),
-                "endtime1": self.time_till1_entry.get(),
-                "endtime2": self.time_till2_entry.get(),
-                "endtime3": self.time_till3_entry.get(),
-                "endtime4": self.time_till4_entry.get(),
-                "endtime5": self.time_till5_entry.get()
+                "starttime1": self.time_work_start1_entry.get(),
+                "starttime2": self.time_work_start2_entry.get(),
+                "starttime3": self.time_work_start3_entry.get(),
+                "starttime4": self.time_work_start4_entry.get(),
+                "starttime5": self.time_work_start5_entry.get(),
+                "endtime1": self.time_work_end1_entry.get(),
+                "endtime2": self.time_work_end2_entry.get(),
+                "endtime3": self.time_work_end3_entry.get(),
+                "endtime4": self.time_work_end4_entry.get(),
+                "endtime5": self.time_work_end5_entry.get()
             }
             self.config_multi_day[config_name_multi_day] = new_config_multi_day
             save_config_multi_day(self.config_multi_day)
@@ -429,7 +489,7 @@ class FormApp:
             messagebox.showerror("Error", "Full Name is required to save config.")
 
 
-    def delete_config(self): # TODO Add for Multi Day
+    def delete_config(self):
         config_entry = self.config_dropdown.get()
         current_values = self.config_dropdown["values"] = list(self.config_single_day.keys())
         parent = "SingleDay"
@@ -453,6 +513,7 @@ class FormApp:
             self.helper_clear_fields(parent)
         else:
             messagebox.showerror("File not found", "No config file found to delete, please select one from the dropdown menu.")
+    
     
     def delete_config_multi_day(self):
         config_entry_multi_day = self.config_dropdown_multi_day.get()
@@ -480,14 +541,14 @@ class FormApp:
         else:
             messagebox.showerror("File not found", "No config file found to delete, please select one from the dropdown menu.")
 
-    
+
     def add_day(self):
         now = datetime.datetime.now()
         todays_date = now.strftime("%d.%m.%Y")
         time_end = now.strftime("%H:%M")
         date_entries = [self.datum1_entry, self.datum2_entry, self.datum3_entry, self.datum4_entry, self.datum5_entry]
-        end_time_entries = [self.time_till1_entry, self.time_till2_entry, self.time_till3_entry, self.time_till4_entry, self.time_till5_entry]
-        
+        end_time_entries = [self.time_work_end1_entry, self.time_work_end2_entry, self.time_work_end3_entry, self.time_work_end4_entry, self.time_work_end5_entry]
+        start_time_entries = [self.time_work_start1_entry, self.time_work_start2_entry, self.time_work_start3_entry, self.time_work_start4_entry, self.time_work_start5_entry]
         try:
             # Check if today's date already exists in any entry
             if todays_date in [entry.get() for entry in date_entries]:
@@ -495,11 +556,14 @@ class FormApp:
                 return
 
             # Find first empty date slot and corresponding time slot
-            for date_entry, end_time_entry in zip(date_entries, end_time_entries):
+            for date_entry, end_time_entry, start_time_entry in zip(date_entries, end_time_entries, start_time_entries):
                 if len(date_entry.get()) == 0:
                     date_entry.insert(0, todays_date)
+                    hour, minute = self.get_work_start_time()
                     if len(end_time_entry.get()) == 0:
                         end_time_entry.insert(0, time_end)
+                    if len(start_time_entry.get()) == 0:
+                        start_time_entry.insert(0, f"{hour}:{minute}")
                     return  # Exit after successful insertion
                     
             # If we get here, all slots are full
@@ -513,22 +577,23 @@ class FormApp:
         full_name = self.full_name_entry_multi_day.get()
         card_id = self.card_id_entry_multi_day.get()
         department = self.department_entry_multi_day.get()
-        work_time_start = self.work_time_start_entry_multi_day.get()
         email_cc = self.email_cc_entry_multi_day.get()
         
         date_entries = [entry for entry in [self.datum1_entry.get(), self.datum2_entry.get(), 
                                     self.datum3_entry.get(), self.datum4_entry.get(), 
                                     self.datum5_entry.get()] if entry != ""]
 
-
-        end_time_entries = [entry for entry in [self.time_till1_entry.get(), self.time_till2_entry.get(), 
-                            self.time_till3_entry.get(), self.time_till4_entry.get(), self.time_till5_entry.get()] if entry != ""]
+        end_time_entries = [entry for entry in [self.time_work_end1_entry.get(), self.time_work_end2_entry.get(), 
+                            self.time_work_end3_entry.get(), self.time_work_end4_entry.get(), self.time_work_end5_entry.get()] if entry != ""]
         
-        if not full_name or not card_id or not department or not work_time_start or not email_cc or not date_entries[0] or not end_time_entries[0]:
+        start_time_entries = [entry for entry in [self.time_work_start1_entry.get(), self.time_work_start2_entry.get(), 
+                                                self.time_work_start3_entry.get(), self.time_work_start4_entry.get(), self.time_work_start5_entry.get()] if entry != ""]
+        
+        if not full_name or not card_id or not department  or not email_cc or not date_entries[0] or not start_time_entries[0] or not end_time_entries[0]:
             messagebox.showerror("Input Error", "All fields are required and at least one date and one end time field!!")
             return
         
-        user_info = MultiDayForm(full_name, card_id, department, work_time_start, email_cc, date_entries, end_time_entries)
+        user_info = MultiDayForm(full_name, card_id, department, email_cc, date_entries, start_time_entries, end_time_entries)
         if user_info.fill_form_multi_day():
             messagebox.showinfo("Success", "Form submitted successfully!")
         else:
@@ -569,14 +634,15 @@ class FormApp:
         single_day_entires = [item for item in [self.full_name_entry, self.card_id_entry,
                                 self.department_entry,self.work_time_start_entry, self.email_cc_entry] if item != ""]
         
-        multi_day_entries = [item for item in [self.full_name_entry_multi_day, self.card_id_entry_multi_day,
-                                            self.department_entry_multi_day, self.work_time_start_entry_multi_day, 
-                                            self.email_cc_entry_multi_day, self.datum1_entry,
+        multi_day_entries = [item for item in [self.datum1_entry,
                                             self.datum2_entry, self.datum3_entry, 
-                                            self.datum4_entry, self.datum4_entry, 
-                                            self.time_till1_entry, self.time_till2_entry,
-                                            self.time_till3_entry, self.time_till4_entry, 
-                                            self.time_till5_entry] if item != ""]
+                                            self.datum4_entry, self.datum4_entry,
+                                            self.time_work_start1_entry, self.time_work_start2_entry,
+                                            self.time_work_start3_entry, self.time_work_start4_entry,
+                                            self.time_work_start5_entry,
+                                            self.time_work_end1_entry, self.time_work_end2_entry,
+                                            self.time_work_end3_entry, self.time_work_end4_entry, 
+                                            self.time_work_end5_entry] if item != ""]
         
         if parent == "SingleDay":
             for entry in single_day_entires:
@@ -594,7 +660,7 @@ def resize_window(event):
     if selected_tab == 0:  # First tab
         root.geometry("350x400")    # Set the desired width and height for the first tab
     elif selected_tab == 1:  # Second tab
-        root.geometry("600x400")  # Set the desired width and height for the second tab
+        root.geometry("650x400")  # Set the desired width and height for the second tab
 
 def on_closing():
     if messagebox.askyesno("Quit", "Do you want to quit?"):
