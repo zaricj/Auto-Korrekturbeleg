@@ -582,15 +582,15 @@ class FormApp:
         date_entries = [entry for entry in [self.datum1_entry.get(), self.datum2_entry.get(), 
                                     self.datum3_entry.get(), self.datum4_entry.get(), 
                                     self.datum5_entry.get()] if entry != ""]
+        
+        start_time_entries = [entry for entry in [self.time_work_start1_entry.get(), self.time_work_start2_entry.get(), 
+                                                self.time_work_start3_entry.get(), self.time_work_start4_entry.get(), self.time_work_start5_entry.get()] if entry != ""]
 
         end_time_entries = [entry for entry in [self.time_work_end1_entry.get(), self.time_work_end2_entry.get(), 
                             self.time_work_end3_entry.get(), self.time_work_end4_entry.get(), self.time_work_end5_entry.get()] if entry != ""]
         
-        start_time_entries = [entry for entry in [self.time_work_start1_entry.get(), self.time_work_start2_entry.get(), 
-                                                self.time_work_start3_entry.get(), self.time_work_start4_entry.get(), self.time_work_start5_entry.get()] if entry != ""]
-        
-        if not full_name or not card_id or not department  or not email_cc or not date_entries[0] or not start_time_entries[0] or not end_time_entries[0]:
-            messagebox.showerror("Input Error", "All fields are required and at least one date and one end time field!!")
+        if not full_name or not card_id or not department  or not email_cc or not date_entries or not start_time_entries or not end_time_entries:
+            messagebox.showerror("Input Error", "All fields are required! Also at least one date, one start and one end time field!")
             return
         
         user_info = MultiDayForm(full_name, card_id, department, email_cc, date_entries, start_time_entries, end_time_entries)
